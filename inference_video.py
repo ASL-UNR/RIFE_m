@@ -187,6 +187,12 @@ def make_inference(I0, I1, n):
     else:
         return [*first_half, *second_half]
 
+def make_inference3x(I0, I1):
+    global model
+    mid1 = model.inference(I0, I1, scale=args.scale, time=1/3)
+    mid2 = model.inference(I0, I1, scale=args.scale, time=2/3)
+    return [mid1, mid2]
+
 def pad_image(img):
     if(args.fp16):
         return F.pad(img, padding).half()
@@ -256,7 +262,7 @@ while True:
             output.append(torch.from_numpy(np.transpose((cv2.addWeighted(frame[:, :, ::-1], alpha, lastframe[:, :, ::-1], beta, 0)[:, :, ::-1].copy()), (2,0,1))).to(device, non_blocking=True).unsqueeze(0).float() / 255.)
         '''
     else:
-        output = make_inference(I0, I1, 2**args.exp-1) if args.exp else []
+        output = make_inference_3x(I0, I1)
 
     if args.montage:
         write_buffer.put(np.concatenate((lastframe, lastframe), 1))

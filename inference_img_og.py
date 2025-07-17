@@ -14,7 +14,6 @@ if torch.cuda.is_available():
 
 parser = argparse.ArgumentParser(description='Interpolation for a pair of images')
 parser.add_argument('--img', dest='img', nargs=2, required=True)
-parser.add_argument('--imgnum', nargs=2, required=True)
 parser.add_argument('--exp', default=4, type=int)
 parser.add_argument('--ratio', default=0, type=float, help='inference ratio between two images with 0 - 1 range')
 parser.add_argument('--rthreshold', default=0.02, type=float, help='returns image when actual ratio falls in given range threshold')
@@ -105,10 +104,8 @@ else:
 
 if not os.path.exists('output'):
     os.mkdir('output')
-
-if args.ratio == 0.333:
-    cv2.imwrite('output/frame{}.jpg'.format(args.imgnum[0]), (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])
-    cv2.imwrite('output/frame{}_0.333_{}.jpg'.format(args.imgnum[0], args.imgnum[1]), (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])        
-else:
-    cv2.imwrite('output/frame{}_0.666_{}.jpg'.format(args.imgnum[0], args.imgnum[1]), (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])
-    cv2.imwrite('output/frame{}.jpg'.format(args.imgnum[1]), (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])
+for i in range(len(img_list)):
+    if args.img[0].endswith('.exr') and args.img[1].endswith('.exr'):
+        cv2.imwrite('output/img{}.exr'.format(i), (img_list[i][0]).cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_EXR_TYPE, cv2.IMWRITE_EXR_TYPE_HALF])
+    else:
+        cv2.imwrite('output/img{}.png'.format(i), (img_list[i][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w])
