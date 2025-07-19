@@ -36,9 +36,4 @@ def rename_images(directory):
         print(f"Renaming {filename} -> {new_name}")
         os.rename(src, dst)
 
-if __name__ == "__main__":
-    input_file_location = input("Input directory: ")
-    try:
-        rename_images(input_file_location)
-    except:
-        print(f"Directory {input_file_location} does not exist")
+rename_images(args.directory)
