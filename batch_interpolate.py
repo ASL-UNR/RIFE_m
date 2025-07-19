@@ -2,7 +2,7 @@ import subprocess
 import os
 
 def run_command_multiple_times(command_template, num_iterations):
-    ratios = [0.333, 0.667]
+    ratios = [0.3333, 0.6667]
     
     for i in range(num_iterations):
         img1 = i          # e.g., frame1.jpg

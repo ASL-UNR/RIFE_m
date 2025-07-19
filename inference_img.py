@@ -17,10 +17,9 @@ parser.add_argument('--img', dest='img', nargs=2, required=True)
 parser.add_argument('--imgnum', nargs=2, required=True)
 parser.add_argument('--exp', default=4, type=int)
 parser.add_argument('--ratio', default=0, type=float, help='inference ratio between two images with 0 - 1 range')
-parser.add_argument('--rthreshold', default=0.02, type=float, help='returns image when actual ratio falls in given range threshold')
-parser.add_argument('--rmaxcycles', default=8, type=int, help='limit max number of bisectional cycles')
+parser.add_argument('--rthreshold', default=0.0002, type=float, help='returns image when actual ratio falls in given range threshold')
+parser.add_argument('--rmaxcycles', default=12, type=int, help='limit max number of bisectional cycles')
 parser.add_argument('--model', dest='modelDir', type=str, default='train_log', help='directory with trained model files')
-
 args = parser.parse_args()
 
 try:
@@ -66,7 +65,7 @@ pw = ((w - 1) // 32 + 1) * 32
 padding = (0, pw - w, 0, ph - h)
 img0 = F.pad(img0, padding)
 img1 = F.pad(img1, padding)
-
+num_cycles = 0
 
 if args.ratio:
     img_list = [img0]
@@ -80,6 +79,7 @@ if args.ratio:
         tmp_img0 = img0
         tmp_img1 = img1
         for inference_cycle in range(args.rmaxcycles):
+            num_cycles = num_cycles + 1
             middle = model.inference(tmp_img0, tmp_img1)
             middle_ratio = ( img0_ratio + img1_ratio ) / 2
             if args.ratio - (args.rthreshold / 2) <= middle_ratio <= args.ratio + (args.rthreshold / 2):
@@ -90,6 +90,9 @@ if args.ratio:
             else:
                 tmp_img1 = middle
                 img1_ratio = middle_ratio
+
+    print("final middle ratio = " + str(middle_ratio))
+    print("number of cycles = " + str(num_cycles))
     img_list.append(middle)
     img_list.append(img1)
 else:
