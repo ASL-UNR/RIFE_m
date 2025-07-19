@@ -109,7 +109,7 @@ else:
 if not os.path.exists('output'):
     os.mkdir('output')
 
-if args.ratio == 0.333:
+if args.ratio == 0.3333:
     if args.imgnum[0] == 0:
         cv2.imwrite('output/frame{}.jpg'.format(args.imgnum[0]), (img_list[0][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])
         print("1st image saved.")
