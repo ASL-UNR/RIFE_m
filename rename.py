@@ -1,4 +1,9 @@
 import os
+import argparse
+
+parser = argparse.ArgumentParser(description='Renaming image frames')
+parser.add_argument('--directory', dest='directory', required=True)
+args = parser.parse_args()
 
 def rename_images(directory):
     marker = 0
@@ -30,3 +35,10 @@ def rename_images(directory):
         dst = os.path.join(directory, new_name)
         print(f"Renaming {filename} -> {new_name}")
         os.rename(src, dst)
+
+if __name__ == "__main__":
+    input_file_location = input("Input directory: ")
+    try:
+        rename_images(input_file_location)
+    except:
+        print(f"Directory {input_file_location} does not exist")
