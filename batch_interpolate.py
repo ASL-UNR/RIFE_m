@@ -23,7 +23,7 @@ if __name__ == "__main__":
     input_file_location = input("Input directory: ")
     try:
         lst = os.listdir(input_file_location)
-        interpol_count = 304 # len(lst)-1
+        interpol_count = len(lst)-1
         print(f"Number of iterations: {interpol_count}")
         # run_command_multiple_times("echo Iteration {}", 4,)
         # run_command_multiple_times("python3 drone_imgint.py --img {}/frame_{}.png {}/frame_{}.png --exp=2 --iternum={} --pathchoice={}", interpol_count, filelocation, filelocation2)
