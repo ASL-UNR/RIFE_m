@@ -39,7 +39,7 @@ def flow2rgb(flow_map_np):
     return rgb_map.clip(0, 1)
 
 def train(model, local_rank, args):
-    if (not args.no_ddp and local_rank == 0) or args.no_ddp:
+    if args.no_ddp or (not args.no_ddp and local_rank == 0):
         writer = SummaryWriter('train')
         writer_val = SummaryWriter('validate')
     else:
@@ -62,7 +62,8 @@ def train(model, local_rank, args):
     print('training...')
     time_stamp = time.time()
     for epoch in range(args.epoch):
-        sampler.set_epoch(epoch)
+        if sampler is not None:
+            sampler.set_epoch(epoch)
         for i, data in enumerate(train_data):
             data_time_interval = time.time() - time_stamp
             time_stamp = time.time()
@@ -75,12 +76,12 @@ def train(model, local_rank, args):
             pred, info = model.update(imgs, gt, learning_rate, training=True) # pass timestep if you are training RIFEm
             train_time_interval = time.time() - time_stamp
             time_stamp = time.time()
-            if step % 200 == 1 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
+            if step % 200 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
                 writer.add_scalar('learning_rate', learning_rate, step)
                 writer.add_scalar('loss/l1', info['loss_l1'], step)
                 writer.add_scalar('loss/tea', info['loss_tea'], step)
                 writer.add_scalar('loss/distill', info['loss_distill'], step)
-            if step % 1000 == 1 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
+            if step % 1000 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
                 gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 pred = (pred.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
@@ -93,18 +94,17 @@ def train(model, local_rank, args):
                     writer.add_image(str(i) + '/flow', np.concatenate((flow2rgb(flow0[i]), flow2rgb(flow1[i])), 1), step, dataformats='HWC')
                     writer.add_image(str(i) + '/mask', mask[i], step, dataformats='HWC')
                 writer.flush()
-            if not args.no_ddp:
-                if local_rank == 0:
+            if args.no_ddp or local_rank == 0:
                     print('epoch:{} {}/{} time:{:.2f}+{:.2f} loss_l1:{:.4e}'.format(epoch, i, args.step_per_epoch, data_time_interval, train_time_interval, info['loss_l1']))
             step += 1
         nr_eval += 1
         if nr_eval % 5 == 0:
-            evaluate(model, val_data, step, local_rank, writer_val)
+            evaluate(model, val_data, step, local_rank, writer_val, args)
         model.save_model(log_path, local_rank)   
         if not args.no_ddp: 
             dist.barrier()
 
-def evaluate(model, val_data, nr_eval, local_rank, writer_val):
+def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
     loss_l1_list = []
     loss_distill_list = []
     loss_tea_list = []
@@ -132,7 +132,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val):
         merged_img = (merged_img.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
         flow0 = info['flow'].permute(0, 2, 3, 1).cpu().numpy()
         flow1 = info['flow_tea'].permute(0, 2, 3, 1).cpu().numpy()
-        if i == 0 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
+        if i == 0 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
             for j in range(10):
                 imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
                 writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
@@ -142,6 +142,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val):
 
     if not args.no_ddp and local_rank != 0:
         return
+    
     writer_val.add_scalar('psnr', np.array(psnr_list).mean(), nr_eval)
     writer_val.add_scalar('psnr_teacher', np.array(psnr_list_teacher).mean(), nr_eval)
         
@@ -166,5 +167,6 @@ if __name__ == "__main__":
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
-    model = Model(args.local_rank)
+    #model = Model(args.local_rank)
+    model = Model(-1) if args.no_ddp else Model(args.local_rank)
     train(model, args.local_rank, args)
