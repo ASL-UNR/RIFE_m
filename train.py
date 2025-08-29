@@ -153,6 +153,8 @@ if __name__ == "__main__":
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
     parser.add_argument('--world_size', default=4, type=int, help='world size')
     args = parser.parse_args()
+    if not torch.distributed.is_available() or torch.cuda.device_count() <= 1:
+        args.no_ddp = True
     if not args.no_ddp:
         torch.distributed.init_process_group(backend="nccl", world_size=args.world_size)
         torch.cuda.set_device(args.local_rank)
