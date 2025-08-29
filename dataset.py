@@ -115,7 +115,7 @@ class CustomDataset(Dataset):
         self.h = 2160
         self.w = 3840
         # point to your custom dataset root
-        self.data_root = '/Users/mikehe/unv_models/ECCV2022-RIFE/vimeo_triplet_test'
+        self.data_root = 'vimeo_triplet_test'
         self.image_root = os.path.join(self.data_root, 'sequences')
         train_fn = os.path.join(self.data_root, 'tri_trainlist.txt')
         test_fn = os.path.join(self.data_root, 'tri_testlist.txt')
