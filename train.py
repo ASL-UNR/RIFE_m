@@ -38,8 +38,8 @@ def flow2rgb(flow_map_np):
     rgb_map[:, :, 2] += normalized_flow_map[:, :, 1]
     return rgb_map.clip(0, 1)
 
-def train(model, local_rank):
-    if local_rank == 0:
+def train(model, local_rank, args):
+    if (not args.no_ddp and local_rank == 0) or args.no_ddp:
         writer = SummaryWriter('train')
         writer_val = SummaryWriter('validate')
     else:
@@ -75,12 +75,12 @@ def train(model, local_rank):
             pred, info = model.update(imgs, gt, learning_rate, training=True) # pass timestep if you are training RIFEm
             train_time_interval = time.time() - time_stamp
             time_stamp = time.time()
-            if step % 200 == 1 and local_rank == 0:
+            if step % 200 == 1 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
                 writer.add_scalar('learning_rate', learning_rate, step)
                 writer.add_scalar('loss/l1', info['loss_l1'], step)
                 writer.add_scalar('loss/tea', info['loss_tea'], step)
                 writer.add_scalar('loss/distill', info['loss_distill'], step)
-            if step % 1000 == 1 and local_rank == 0:
+            if step % 1000 == 1 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
                 gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 pred = (pred.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
@@ -132,7 +132,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val):
         merged_img = (merged_img.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
         flow0 = info['flow'].permute(0, 2, 3, 1).cpu().numpy()
         flow1 = info['flow_tea'].permute(0, 2, 3, 1).cpu().numpy()
-        if i == 0 and local_rank == 0:
+        if i == 0 and ((not args.no_ddp and local_rank == 0) or args.no_ddp):
             for j in range(10):
                 imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
                 writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
@@ -140,7 +140,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val):
     
     eval_time_interval = time.time() - time_stamp
 
-    if local_rank != 0:
+    if not args.no_ddp and local_rank != 0:
         return
     writer_val.add_scalar('psnr', np.array(psnr_list).mean(), nr_eval)
     writer_val.add_scalar('psnr_teacher', np.array(psnr_list_teacher).mean(), nr_eval)
@@ -165,4 +165,4 @@ if __name__ == "__main__":
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
     model = Model(args.local_rank)
-    train(model, args.local_rank)
+    train(model, args.local_rank, args)
