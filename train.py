@@ -10,6 +10,7 @@ import argparse
 
 from model.RIFE import Model
 from dataset import *
+from dataset import CustomDataset
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.distributed import DistributedSampler
@@ -45,12 +46,17 @@ def train(model, local_rank):
         writer_val = None
     step = 0
     nr_eval = 0
-    dataset = VimeoDataset('train')
-    sampler = DistributedSampler(dataset)
-    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler)
+    #dataset = VimeoDataset('train')
+    #sampler = DistributedSampler(dataset)
+    #train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler)
+    dataset = CustomDataset('train') # Added
+    sampler = DistributedSampler(dataset) # Added
+    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler) # Added
     args.step_per_epoch = train_data.__len__()
-    dataset_val = VimeoDataset('validation')
-    val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8)
+    #dataset_val = VimeoDataset('validation')
+    #val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8)
+    dataset_val = CustomDataset('validation') # Added
+    val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8) # Added
     print('training...')
     time_stamp = time.time()
     for epoch in range(args.epoch):
@@ -152,4 +158,3 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = True
     model = Model(args.local_rank)
     train(model, args.local_rank)
-        
