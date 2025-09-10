@@ -28,6 +28,6 @@ if __name__ == "__main__":
         # run_command_multiple_times("echo Iteration {}", 4,)
         # run_command_multiple_times("python3 drone_imgint.py --img {}/frame_{}.png {}/frame_{}.png --exp=2 --iternum={} --pathchoice={}", interpol_count, filelocation, filelocation2)
         #run_command_multiple_times("python3 inference_img.py --img input/frame{}.jpg input/frame{}.jpg --imgnum {} {} --ratio {}", interpol_count)
-        run_command_multiple_times("python3 inference_img.py --img input/frame{}.jpg input/frame{}.jpg --imgnum {} {} --ratio {} --model RIFE_m_train_log", interpol_count)
+        run_command_multiple_times("python3 inference_img.py --img input/frame{}.jpg input/frame{}.jpg --imgnum {} {} --ratio {} --model train_log_HDv3", interpol_count)
     except:
         print(f"Directory {input_file_location} does not exist")
