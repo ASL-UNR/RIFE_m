@@ -18,9 +18,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Model:
     def __init__(self, local_rank=-1, arbitrary=False):
         if arbitrary == True:
+            print("using IFNet_m")
             self.flownet = IFNet_m()
         else:
             self.flownet = IFNet()
+            print("using IFNet")
         self.device()
         self.optimG = AdamW(self.flownet.parameters(), lr=1e-6, weight_decay=1e-3) # use large weight decay may avoid NaN loss
         self.epe = EPE()
