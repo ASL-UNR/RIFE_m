@@ -16,7 +16,7 @@ from model.refine import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
 class Model:
-    def __init__(self, local_rank=-1, arbitrary=False):
+    def __init__(self, local_rank=-1, arbitrary=True):
         if arbitrary == True:
             print("using IFNet_m")
             self.flownet = IFNet_m()
