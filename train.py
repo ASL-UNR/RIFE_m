@@ -15,8 +15,7 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.distributed import DistributedSampler
 
-#device = torch.device("cuda")
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda")
 
 log_path = 'train_log'
 
@@ -38,8 +37,8 @@ def flow2rgb(flow_map_np):
     rgb_map[:, :, 2] += normalized_flow_map[:, :, 1]
     return rgb_map.clip(0, 1)
 
-def train(model, local_rank, args):
-    if args.no_ddp or (not args.no_ddp and local_rank == 0):
+def train(model, local_rank):
+    if local_rank == 0:
         writer = SummaryWriter('train')
         writer_val = SummaryWriter('validate')
     else:
@@ -51,9 +50,8 @@ def train(model, local_rank, args):
     #sampler = DistributedSampler(dataset)
     #train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler)
     dataset = CustomDataset('train') # Added
-    #sampler = DistributedSampler(dataset) # Added
-    sampler = DistributedSampler(dataset) if not args.no_ddp else None
-    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=2, pin_memory=True, drop_last=True, sampler=sampler) # Added, num workers was 8
+    sampler = DistributedSampler(dataset) # Added
+    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=8, pin_memory=True, drop_last=True, sampler=sampler) # Added
     args.step_per_epoch = train_data.__len__()
     #dataset_val = VimeoDataset('validation')
     #val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8)
@@ -62,8 +60,7 @@ def train(model, local_rank, args):
     print('training...')
     time_stamp = time.time()
     for epoch in range(args.epoch):
-        if sampler is not None:
-            sampler.set_epoch(epoch)
+        sampler.set_epoch(epoch)
         for i, data in enumerate(train_data):
             data_time_interval = time.time() - time_stamp
             time_stamp = time.time()
@@ -76,12 +73,12 @@ def train(model, local_rank, args):
             pred, info = model.update(imgs, gt, learning_rate, training=True) # pass timestep if you are training RIFEm
             train_time_interval = time.time() - time_stamp
             time_stamp = time.time()
-            if step % 200 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+            if step % 200 == 1 and local_rank == 0:
                 writer.add_scalar('learning_rate', learning_rate, step)
                 writer.add_scalar('loss/l1', info['loss_l1'], step)
                 writer.add_scalar('loss/tea', info['loss_tea'], step)
                 writer.add_scalar('loss/distill', info['loss_distill'], step)
-            if step % 1000 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+            if step % 1000 == 1 and local_rank == 0:
                 gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 pred = (pred.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
@@ -94,17 +91,16 @@ def train(model, local_rank, args):
                     writer.add_image(str(i) + '/flow', np.concatenate((flow2rgb(flow0[i]), flow2rgb(flow1[i])), 1), step, dataformats='HWC')
                     writer.add_image(str(i) + '/mask', mask[i], step, dataformats='HWC')
                 writer.flush()
-            if args.no_ddp or local_rank == 0:
-                    print('epoch:{} {}/{} time:{:.2f}+{:.2f} loss_l1:{:.4e}'.format(epoch, i, args.step_per_epoch, data_time_interval, train_time_interval, info['loss_l1']))
+            if local_rank == 0:
+                print('epoch:{} {}/{} time:{:.2f}+{:.2f} loss_l1:{:.4e}'.format(epoch, i, args.step_per_epoch, data_time_interval, train_time_interval, info['loss_l1']))
             step += 1
         nr_eval += 1
         if nr_eval % 5 == 0:
-            evaluate(model, val_data, step, local_rank, writer_val, args)
-        model.save_model(log_path, local_rank)   
-        if not args.no_ddp: 
-            dist.barrier()
+            evaluate(model, val_data, step, local_rank, writer_val)
+        model.save_model(log_path, local_rank)    
+        dist.barrier()
 
-def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
+def evaluate(model, val_data, nr_eval, local_rank, writer_val):
     loss_l1_list = []
     loss_distill_list = []
     loss_tea_list = []
@@ -132,7 +128,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
         merged_img = (merged_img.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
         flow0 = info['flow'].permute(0, 2, 3, 1).cpu().numpy()
         flow1 = info['flow_tea'].permute(0, 2, 3, 1).cpu().numpy()
-        if i == 0 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+        if i == 0 and local_rank == 0:
             for j in range(10):
                 imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
                 writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
@@ -140,33 +136,25 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
     
     eval_time_interval = time.time() - time_stamp
 
-    if not args.no_ddp and local_rank != 0:
+    if local_rank != 0:
         return
-    
     writer_val.add_scalar('psnr', np.array(psnr_list).mean(), nr_eval)
     writer_val.add_scalar('psnr_teacher', np.array(psnr_list_teacher).mean(), nr_eval)
         
 if __name__ == "__main__":    
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no_ddp', action='store_true', help='Disable DDP for single-GPU mode (e.g., Colab)')
     parser.add_argument('--epoch', default=300, type=int)
     parser.add_argument('--batch_size', default=16, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
     parser.add_argument('--world_size', default=4, type=int, help='world size')
     args = parser.parse_args()
-    if not torch.distributed.is_available() or torch.cuda.device_count() <= 1:
-        args.no_ddp = True
-    if not args.no_ddp:
-        torch.distributed.init_process_group(backend="nccl", world_size=args.world_size)
-        torch.cuda.set_device(args.local_rank)
-    else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.distributed.init_process_group(backend="nccl", world_size=args.world_size)
+    torch.cuda.set_device(args.local_rank)
     seed = 1234
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
-    #model = Model(args.local_rank)
-    model = Model(-1) if args.no_ddp else Model(args.local_rank)
-    train(model, args.local_rank, args)
+    model = Model(args.local_rank)
+    train(model, args.local_rank)
