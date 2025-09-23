@@ -101,7 +101,7 @@ def train(model, local_rank, args):
         nr_eval += 1
         if nr_eval % 5 == 0:
             evaluate(model, val_data, step, local_rank, writer_val, args)
-        model.save_model(log_path, local_rank)   
+        model.save_model(log_path, local_rank, epoch, step)   
         if not args.no_ddp: 
             dist.barrier()
 

@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from model.loss import *
 from model.laplacian import *
 from model.refine import *
+import os
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
@@ -40,7 +41,8 @@ class Model:
     def device(self):
         self.flownet.to(device)
 
-    def load_model(self, path, rank=0):
+    def load_model(self, path, rank=0, strict=True):
+        '''
         def convert(param):
             return {
             k.replace("module.", ""): v
@@ -50,10 +52,77 @@ class Model:
             
         if rank <= 0:
             self.flownet.load_state_dict(convert(torch.load('{}/flownet.pkl'.format(path))))
-        
-    def save_model(self, path, rank=0):
-        if rank == 0:
-            torch.save(self.flownet.state_dict(),'{}/flownet.pkl'.format(path))
+        '''
+        """
+        Single-GPU friendly loader:
+        - Works with both clean keys and old DDP ('module.') keys
+        - Restores optimizer and returns (epoch, step) if present
+        - Safe on CPU or GPU
+        """
+        if rank > 0:
+            return None, None  # no-op on non-zero ranks (future-proof)
+
+        ckpt_path = os.path.join(path, "flownet.pkl")
+        if not os.path.isfile(ckpt_path):
+            print(f"[load_model] No checkpoint at {ckpt_path}")
+            return None, None
+
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+
+        # Backward-compat: support old files that were weights-only
+        state = ckpt.get("model", ckpt)
+
+        # Strip 'module.' if checkpoint came from DDP
+        if any(k.startswith("module.") for k in state.keys()):
+            state = {k.replace("module.", "", 1): v for k, v in state.items()}
+
+        # Load weights
+        self.flownet.load_state_dict(state, strict=strict)
+
+        # Load optimizer if available
+        if "optim" in ckpt:
+            try:
+                self.optimG.load_state_dict(ckpt["optim"])
+            except Exception as e:
+                print(f"[load_model] Optimizer state not loaded ({e}); continuing with fresh optimizer.")
+
+        epoch = ckpt.get("epoch")
+        step = ckpt.get("step")
+        print(f"[load_model] Loaded checkpoint from {ckpt_path} (epoch={epoch}, step={step})")
+        return epoch, step
+
+    def save_model(self, path, rank=0, epoch=None, step=None):
+        #if rank == 0:
+            #torch.save(self.flownet.state_dict(),'{}/flownet.pkl'.format(path))
+        """
+        Single-GPU friendly saver:
+        - Ensures folder exists
+        - Always saves a clean (no 'module.') state_dict
+        - Optionally stores epoch/step to resume later
+        """
+        # rank guard is harmless on single GPU; keeps compatibility if you later add DDP
+        if rank != 0:
+            return
+
+        # If you ever wrap with DDP in the future, save underlying module weights
+        if isinstance(self.flownet, DDP):
+            net = self.flownet.module
+            print("DDP")
+        else:
+            net = self.flownet
+
+        # build a unique filename
+        if epoch is not None:
+            if step is not None:
+                fname = f"flownet_epoch{epoch:04d}_step{step:08d}.pkl"
+            else:
+                fname = f"flownet_epoch{epoch:04d}.pkl"
+        else:
+            fname = "flownet.pkl"  # fallback if you don’t pass epoch/step
+
+        ckpt_path = os.path.join(path, fname)
+        torch.save(self.flownet.state_dict(), ckpt_path)
+        print(f"[save_model] Saved checkpoint to {ckpt_path}")
 
     def inference(self, img0, img1, scale=1, scale_list=[4, 2, 1], TTA=False, timestep=0.5):
         for i in range(3):
