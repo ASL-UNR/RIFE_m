@@ -20,6 +20,12 @@ def run_command_multiple_times(command_template, num_iterations):
                 print("Error:", result.stderr.strip())
 
 if __name__ == "__main__":
+    model_dir = input("Trained weights directory: ")
+    try:
+        os.listdir(model_dir)
+    except:
+        print(f"Directory {model_dir} does not exist")
+
     input_file_location = input("Input directory: ")
     try:
         lst = os.listdir(input_file_location)
@@ -28,6 +34,6 @@ if __name__ == "__main__":
         # run_command_multiple_times("echo Iteration {}", 4,)
         # run_command_multiple_times("python3 drone_imgint.py --img {}/frame_{}.png {}/frame_{}.png --exp=2 --iternum={} --pathchoice={}", interpol_count, filelocation, filelocation2)
         #run_command_multiple_times("python3 inference_img.py --img input/frame{}.jpg input/frame{}.jpg --imgnum {} {} --ratio {}", interpol_count)
-        run_command_multiple_times("python3 inference_img.py --img input/frame{}.jpg input/frame{}.jpg --imgnum {} {} --ratio {} --model train_log_HDv3", interpol_count)
+        run_command_multiple_times("python3 inference_img.py --img {}/frame{}.jpg {}/frame{}.jpg --imgnum {} {} --ratio {} --model {}", input_file_location, interpol_count, model_dir)
     except:
         print(f"Directory {input_file_location} does not exist")
