@@ -19,7 +19,16 @@ from torch.utils.data.distributed import DistributedSampler
 #device = torch.device("cuda")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-log_path = 'train_log_9_9IFNet_m'
+parser = argparse.ArgumentParser(description='training RIFE model')
+parser.add_argument('--logpath', dest='log_path', type=str, required=True)
+args = parser.parse_args()
+log_path = args.log_path
+
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+    print(f"Created directory: {log_path}")
+else:
+    print(f"Directory already exists: {log_path}")
 
 def get_learning_rate(step):
     if step < 2000:
