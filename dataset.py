@@ -115,7 +115,7 @@ class CustomDataset(Dataset):
         self.h = 2160
         self.w = 3840
         # point to your custom dataset root
-        self.data_root = 'vimeo_triplet_all/vimeo_triplet'
+        self.data_root = 'vimeo_septuplet_all/vimeo_septuplet'
         self.image_root = os.path.join(self.data_root, 'sequences')
         train_fn = os.path.join(self.data_root, 'tri_trainlist.txt')
         test_fn = os.path.join(self.data_root, 'tri_testlist.txt')
@@ -146,51 +146,67 @@ class CustomDataset(Dataset):
         gt = gt[x:x+h, y:y+w, :]
         return img0, gt, img1
 
-    def getimg(self, index):
+    def getimg(self, index, first, middle, last):
         imgpath = os.path.join(self.image_root, self.meta_data[index])
-        imgpaths = [imgpath + '/im1.png', imgpath + '/im2.png', imgpath + '/im3.png']
+        first_path  = f'/im{first}.png'
+        middle_path = f'/im{middle}.png'
+        last_path   = f'/im{last}.png'  
+        imgpaths = [imgpath + first_path, imgpath + middle_path, imgpath + last_path]
         img0 = cv2.imread(imgpaths[0])
         gt = cv2.imread(imgpaths[1])
         img1 = cv2.imread(imgpaths[2])
-        timestep = 0.5
+        
+        if last - middle == 1:
+            timestep = 2.0 / 3.0
+        else:
+            timestep = 1.0 / 3.0
+
         return img0, gt, img1, timestep
 
     def __getitem__(self, index):
-        img0, gt, img1, timestep = self.getimg(index)
-        if self.dataset_name == 'train':
-            img0, gt, img1 = self.crop(img0, gt, img1, 224, 224)
-            if random.uniform(0, 1) < 0.5:
-                img0 = img0[:, :, ::-1]
-                img1 = img1[:, :, ::-1]
-                gt = gt[:, :, ::-1]
-            if random.uniform(0, 1) < 0.5:
-                img0 = img0[::-1]
-                img1 = img1[::-1]
-                gt = gt[::-1]
-            if random.uniform(0, 1) < 0.5:
-                img0 = img0[:, ::-1]
-                img1 = img1[:, ::-1]
-                gt = gt[:, ::-1]
-            if random.uniform(0, 1) < 0.5:
-                tmp = img1
-                img1 = img0
-                img0 = tmp
-                timestep = 1 - timestep
-            p = random.uniform(0, 1)
-            if p < 0.25:
-                img0 = cv2.rotate(img0, cv2.ROTATE_90_CLOCKWISE)
-                gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
-                img1 = cv2.rotate(img1, cv2.ROTATE_90_CLOCKWISE)
-            elif p < 0.5:
-                img0 = cv2.rotate(img0, cv2.ROTATE_180)
-                gt = cv2.rotate(gt, cv2.ROTATE_180)
-                img1 = cv2.rotate(img1, cv2.ROTATE_180)
-            elif p < 0.75:
-                img0 = cv2.rotate(img0, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                gt = cv2.rotate(gt, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                img1 = cv2.rotate(img1, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        img0 = torch.from_numpy(img0.copy()).permute(2, 0, 1)
-        img1 = torch.from_numpy(img1.copy()).permute(2, 0, 1)
-        gt = torch.from_numpy(gt.copy()).permute(2, 0, 1)
-        timestep = torch.tensor(timestep).reshape(1, 1, 1)
-        return torch.cat((img0, img1, gt), 0), timestep
+        list_samples = []
+        list_indices = [[1,2,4], [1,3,4], [2,3,5], [2,4,5], [3,4,6], [3,5,6], [4,5,7], [4,6,7]]
+        for i in range(8):
+            print(list_indices[i])
+            img0, gt, img1, timestep = self.getimg(index, list_indices[i][0], list_indices[i][1], list_indices[i][2])
+            if self.dataset_name == 'train':
+                img0, gt, img1 = self.crop(img0, gt, img1, 224, 224)
+                if random.uniform(0, 1) < 0.5:
+                    img0 = img0[:, :, ::-1]
+                    img1 = img1[:, :, ::-1]
+                    gt = gt[:, :, ::-1]
+                if random.uniform(0, 1) < 0.5:
+                    img0 = img0[::-1]
+                    img1 = img1[::-1]
+                    gt = gt[::-1]
+                if random.uniform(0, 1) < 0.5:
+                    img0 = img0[:, ::-1]
+                    img1 = img1[:, ::-1]
+                    gt = gt[:, ::-1]
+                if random.uniform(0, 1) < 0.5:
+                    tmp = img1
+                    img1 = img0
+                    img0 = tmp
+                    timestep = 1 - timestep
+                p = random.uniform(0, 1)
+                if p < 0.25:
+                    img0 = cv2.rotate(img0, cv2.ROTATE_90_CLOCKWISE)
+                    gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
+                    img1 = cv2.rotate(img1, cv2.ROTATE_90_CLOCKWISE)
+                elif p < 0.5:
+                    img0 = cv2.rotate(img0, cv2.ROTATE_180)
+                    gt = cv2.rotate(gt, cv2.ROTATE_180)
+                    img1 = cv2.rotate(img1, cv2.ROTATE_180)
+                elif p < 0.75:
+                    img0 = cv2.rotate(img0, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    gt = cv2.rotate(gt, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    img1 = cv2.rotate(img1, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            img0 = torch.from_numpy(img0.copy()).permute(2, 0, 1)
+            img1 = torch.from_numpy(img1.copy()).permute(2, 0, 1)
+            gt = torch.from_numpy(gt.copy()).permute(2, 0, 1)
+            timestep = torch.tensor(timestep).reshape(1, 1, 1)
+
+            tup = (torch.cat((img0, img1, gt), 0), timestep)
+            list_samples.append(tup)
+
+        return list_samples

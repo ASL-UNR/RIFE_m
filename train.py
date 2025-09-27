@@ -55,7 +55,7 @@ def train(model, local_rank, args):
     #sampler = DistributedSampler(dataset) # Added
     sampler = DistributedSampler(dataset) if not args.no_ddp else None
     train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=2, pin_memory=True, drop_last=True, sampler=sampler) # Added, num workers was 8
-    args.step_per_epoch = train_data.__len__()
+    args.step_per_epoch = train_data.__len__() * 8
     #dataset_val = VimeoDataset('validation')
     #val_data = DataLoader(dataset_val, batch_size=16, pin_memory=True, num_workers=8)
     dataset_val = CustomDataset('validation') # Added
@@ -65,42 +65,46 @@ def train(model, local_rank, args):
     for epoch in range(args.epoch):
         if sampler is not None:
             sampler.set_epoch(epoch)
-        for i, data in enumerate(train_data):
-            data_time_interval = time.time() - time_stamp
-            time_stamp = time.time()
-            data_gpu, timestep = data
-            data_gpu = data_gpu.to(device, non_blocking=True) / 255.
-            timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)
-            imgs = data_gpu[:, :6]
-            gt = data_gpu[:, 6:9]
-            learning_rate = get_learning_rate(step) * args.world_size / 4
-            pred, info = model.update(imgs, gt, timestep, learning_rate, training=True) # pass timestep if you are training RIFEm
-            train_time_interval = time.time() - time_stamp
-            time_stamp = time.time()
-            if step % 200 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
-                writer.add_scalar('learning_rate', learning_rate, step)
-                writer.add_scalar('loss/l1', info['loss_l1'], step)
-                writer.add_scalar('loss/tea', info['loss_tea'], step)
-                writer.add_scalar('loss/distill', info['loss_distill'], step)
-                writer.add_scalar('timestep/mean', timestep.mean().item(), step)
-                writer.add_scalar('timestep/std',  timestep.std().item(),  step)
-                writer.add_histogram('timestep/batch', timestep.detach(), step)
-            if step % 1000 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
-                gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
-                mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
-                pred = (pred.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
-                merged_img = (info['merged_tea'].permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
-                flow0 = info['flow'].permute(0, 2, 3, 1).detach().cpu().numpy()
-                flow1 = info['flow_tea'].permute(0, 2, 3, 1).detach().cpu().numpy()
-                for i in range(5):
-                    imgs = np.concatenate((merged_img[i], pred[i], gt[i]), 1)[:, :, ::-1]
-                    writer.add_image(str(i) + '/img', imgs, step, dataformats='HWC')
-                    writer.add_image(str(i) + '/flow', np.concatenate((flow2rgb(flow0[i]), flow2rgb(flow1[i])), 1), step, dataformats='HWC')
-                    writer.add_image(str(i) + '/mask', mask[i], step, dataformats='HWC')
-                writer.flush()
-            if args.no_ddp or local_rank == 0:
-                    print('epoch:{} {}/{} time:{:.2f}+{:.2f} loss_l1:{:.4e}'.format(epoch, i, args.step_per_epoch, data_time_interval, train_time_interval, info['loss_l1']))
-            step += 1
+        for i, dat in enumerate(train_data):
+            for num_sample in range(8):
+                print("on sample number " + str(num_sample))
+                data = dat[num_sample]
+                data_time_interval = time.time() - time_stamp
+                time_stamp = time.time()
+                data_gpu, timestep = data
+                print(timestep)
+                data_gpu = data_gpu.to(device, non_blocking=True).float() / 255.
+                timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)
+                imgs = data_gpu[:, :6]
+                gt = data_gpu[:, 6:9]
+                learning_rate = get_learning_rate(step) * args.world_size / 4
+                pred, info = model.update(imgs, gt, timestep, learning_rate, training=True) # pass timestep if you are training RIFEm
+                train_time_interval = time.time() - time_stamp
+                time_stamp = time.time()
+                if step % 200 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+                    writer.add_scalar('learning_rate', learning_rate, step)
+                    writer.add_scalar('loss/l1', info['loss_l1'], step)
+                    writer.add_scalar('loss/tea', info['loss_tea'], step)
+                    writer.add_scalar('loss/distill', info['loss_distill'], step)
+                    writer.add_scalar('timestep/mean', timestep.mean().item(), step)
+                    writer.add_scalar('timestep/std',  timestep.std().item(),  step)
+                    writer.add_histogram('timestep/batch', timestep.detach().cpu(), step)
+                if step % 1000 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+                    gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
+                    mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
+                    pred = (pred.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
+                    merged_img = (info['merged_tea'].permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
+                    flow0 = info['flow'].permute(0, 2, 3, 1).detach().cpu().numpy()
+                    flow1 = info['flow_tea'].permute(0, 2, 3, 1).detach().cpu().numpy()
+                    for i in range(5):
+                        imgs = np.concatenate((merged_img[i], pred[i], gt[i]), 1)[:, :, ::-1]
+                        writer.add_image(str(i) + '/img', imgs, step, dataformats='HWC')
+                        writer.add_image(str(i) + '/flow', np.concatenate((flow2rgb(flow0[i]), flow2rgb(flow1[i])), 1), step, dataformats='HWC')
+                        writer.add_image(str(i) + '/mask', mask[i], step, dataformats='HWC')
+                    writer.flush()
+                if args.no_ddp or local_rank == 0:
+                        print('epoch:{} {}/{} time:{:.2f}+{:.2f} loss_l1:{:.4e}'.format(epoch, i, args.step_per_epoch, data_time_interval, train_time_interval, info['loss_l1']))
+                step += 1
         nr_eval += 1
         if nr_eval % 5 == 0:
             evaluate(model, val_data, step, local_rank, writer_val, args)
@@ -115,34 +119,36 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
     psnr_list = []
     psnr_list_teacher = []
     time_stamp = time.time()
-    for i, data in enumerate(val_data):
-        data_gpu, timestep = data
-        data_gpu = data_gpu.to(device, non_blocking=True) / 255.
-        timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)        
-        imgs = data_gpu[:, :6]
-        gt = data_gpu[:, 6:9]
-        with torch.no_grad():
-            pred, info = model.update(imgs, gt, timestep, training=False)
-            merged_img = info['merged_tea']
-        loss_l1_list.append(info['loss_l1'].cpu().numpy())
-        loss_tea_list.append(info['loss_tea'].cpu().numpy())
-        loss_distill_list.append(info['loss_distill'].cpu().numpy())
-        for j in range(gt.shape[0]):
-            psnr = -10 * math.log10(torch.mean((gt[j] - pred[j]) * (gt[j] - pred[j])).cpu().data)
-            psnr_list.append(psnr)
-            psnr = -10 * math.log10(torch.mean((merged_img[j] - gt[j]) * (merged_img[j] - gt[j])).cpu().data)
-            psnr_list_teacher.append(psnr)
-        gt = (gt.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
-        pred = (pred.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
-        merged_img = (merged_img.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
-        flow0 = info['flow'].permute(0, 2, 3, 1).cpu().numpy()
-        flow1 = info['flow_tea'].permute(0, 2, 3, 1).cpu().numpy()
-        if i == 0 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
-            for j in range(10):
-                imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
-                writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
-                writer_val.add_image(str(j) + '/flow', flow2rgb(flow0[j][:, :, ::-1]), nr_eval, dataformats='HWC')
-                writer_val.add_histogram('timestep/batch', timestep.detach(), nr_eval)
+    for i, dat in enumerate(val_data):
+        for num_sample in range(8):
+            data = dat[num_sample]
+            data_gpu, timestep = data
+            data_gpu = data_gpu.to(device, non_blocking=True) / 255.
+            timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)        
+            imgs = data_gpu[:, :6]
+            gt = data_gpu[:, 6:9]
+            with torch.no_grad():
+                pred, info = model.update(imgs, gt, timestep, training=False)
+                merged_img = info['merged_tea']
+            loss_l1_list.append(info['loss_l1'].cpu().numpy())
+            loss_tea_list.append(info['loss_tea'].cpu().numpy())
+            loss_distill_list.append(info['loss_distill'].cpu().numpy())
+            for j in range(gt.shape[0]):
+                psnr = -10 * math.log10(torch.mean((gt[j] - pred[j]) * (gt[j] - pred[j])).cpu().data)
+                psnr_list.append(psnr)
+                psnr = -10 * math.log10(torch.mean((merged_img[j] - gt[j]) * (merged_img[j] - gt[j])).cpu().data)
+                psnr_list_teacher.append(psnr)
+            gt = (gt.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
+            pred = (pred.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
+            merged_img = (merged_img.permute(0, 2, 3, 1).cpu().numpy() * 255).astype('uint8')
+            flow0 = info['flow'].permute(0, 2, 3, 1).cpu().numpy()
+            flow1 = info['flow_tea'].permute(0, 2, 3, 1).cpu().numpy()
+            if i == 0 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
+                for j in range(10):
+                    imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
+                    writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
+                    writer_val.add_image(str(j) + '/flow', flow2rgb(flow0[j]), nr_eval, dataformats='HWC') #flow2rgb(flow0[j][:, :, ::-1]), nr_eval, dataformats='HWC')
+                    writer_val.add_histogram('timestep/batch', timestep.detach().cpu(), nr_eval)
     
     eval_time_interval = time.time() - time_stamp
 
