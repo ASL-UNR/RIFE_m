@@ -69,6 +69,7 @@ def train(model, local_rank, args):
             for num_sample in range(8):
                 print("on sample number " + str(num_sample))
                 data = dat[num_sample]
+                print(data)
                 data_time_interval = time.time() - time_stamp
                 time_stamp = time.time()
                 data_gpu, timestep = data
