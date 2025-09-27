@@ -117,8 +117,8 @@ class CustomDataset(Dataset):
         # point to your custom dataset root
         self.data_root = 'vimeo_septuplet_all/vimeo_septuplet'
         self.image_root = os.path.join(self.data_root, 'sequences')
-        train_fn = os.path.join(self.data_root, 'tri_trainlist.txt')
-        test_fn = os.path.join(self.data_root, 'tri_testlist.txt')
+        train_fn = os.path.join(self.data_root, 'sep_trainlist.txt')
+        test_fn = os.path.join(self.data_root, 'sep_testlist.txt')
         with open(train_fn, 'r') as f:
             self.trainlist = f.read().splitlines()
         with open(test_fn, 'r') as f:
