@@ -19,17 +19,6 @@ from torch.utils.data.distributed import DistributedSampler
 #device = torch.device("cuda")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-parser = argparse.ArgumentParser(description='training RIFE model')
-parser.add_argument('--logpath', dest='log_path', type=str, required=True)
-args = parser.parse_args()
-log_path = args.log_path
-
-if not os.path.exists(log_path):
-    os.makedirs(log_path)
-    print(f"Created directory: {log_path}")
-else:
-    print(f"Directory already exists: {log_path}")
-
 def get_learning_rate(step):
     if step < 2000:
         mul = step / 2000.
@@ -49,6 +38,8 @@ def flow2rgb(flow_map_np):
     return rgb_map.clip(0, 1)
 
 def train(model, local_rank, args):
+    log_path = args.logpath
+    print(log_path)
     if args.no_ddp or (not args.no_ddp and local_rank == 0):
         writer = SummaryWriter('train')
         writer_val = SummaryWriter('validate')
@@ -174,7 +165,15 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=16, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
     parser.add_argument('--world_size', default=4, type=int, help='world size')
+    parser.add_argument('--logpath', dest='logpath', type=str, required=True)
     args = parser.parse_args()
+    logp = args.logpath
+    if not os.path.exists(logp):
+        os.makedirs(logp)
+        print(f"Created directory: {logp}")
+    else:
+        print(f"Directory already exists: {logp}")
+
     if not torch.distributed.is_available() or torch.cuda.device_count() <= 1:
         args.no_ddp = True
     if not args.no_ddp:
@@ -182,6 +181,7 @@ if __name__ == "__main__":
         torch.cuda.set_device(args.local_rank)
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     seed = 1234
     random.seed(seed)
     np.random.seed(seed)
