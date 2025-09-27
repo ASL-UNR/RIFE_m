@@ -60,7 +60,7 @@ class IFNet_m(nn.Module):
         self.contextnet = Contextnet()
         self.unet = Unet()
 
-    def forward(self, x, scale=[4,2,1], timestep=0.5, returnflow=False):
+    def forward(self, x, timestep, scale=[4,2,1], returnflow=False):
         timestep = (x[:, :1].clone() * 0 + 1) * timestep
         img0 = x[:, :3]
         img1 = x[:, 3:6]

@@ -15,11 +15,12 @@ if torch.cuda.is_available():
 parser = argparse.ArgumentParser(description='Interpolation for a pair of images')
 parser.add_argument('--img', dest='img', nargs=2, required=True)
 parser.add_argument('--imgnum', nargs=2, required=True)
-parser.add_argument('--exp', default=4, type=int)
-parser.add_argument('--ratio', default=0, type=float, help='inference ratio between two images with 0 - 1 range')
-parser.add_argument('--rthreshold', default=0.0002, type=float, help='returns image when actual ratio falls in given range threshold')
-parser.add_argument('--rmaxcycles', default=12, type=int, help='limit max number of bisectional cycles')
-parser.add_argument('--model', dest='modelDir', type=str, default='train_log', help='directory with trained model files')
+#parser.add_argument('--exp', default=4, type=int)
+#parser.add_argument('--ratio', default=0, type=float, help='inference ratio between two images with 0 - 1 range') -- used originally for recursive t not equal to 0.5 interpolation
+parser.add_argument('--time', dest='time', type=float, required=True)
+#parser.add_argument('--rthreshold', default=0.0002, type=float, help='returns image when actual ratio falls in given range threshold') -- used originally for recursive t not equal to 0.5 interpolation
+#parser.add_argument('--rmaxcycles', default=12, type=int, help='limit max number of bisectional cycles') -- used originally for recursive t not equal to 0.5 interpolation
+parser.add_argument('--model', dest='modelDir', type=str, help='directory with trained model files', required=True)
 args = parser.parse_args()
 
 try:
@@ -67,6 +68,7 @@ img0 = F.pad(img0, padding)
 img1 = F.pad(img1, padding)
 num_cycles = 0
 
+'''
 if args.ratio:
     img_list = [img0]
     img0_ratio = 0.0
@@ -105,12 +107,22 @@ else:
             tmp.append(mid)
         tmp.append(img1)
         img_list = tmp
+'''
+time = args.time
+timest = torch.tensor([time], dtype=torch.float32, device=device)
+img_list = [img0]
+mid = model.inference(img0, img1, timest)
+img_list.append(mid)
+img_list.append(img1)
 
 if not os.path.exists('output'):
     os.mkdir('output')
 
-if args.ratio == 0.3333:
-    if args.imgnum[0] == 0:
+i0 = int(args.imgnum[0])
+i1 = int(args.imgnum[1])
+
+if time == 0.3333:
+    if i0 == 0:
         cv2.imwrite('output/frame{}.jpg'.format(args.imgnum[0]), (img_list[0][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])
         print("1st image saved.")
     cv2.imwrite('output/frame{}_0.333_{}.jpg'.format(args.imgnum[0], args.imgnum[1]), (img_list[1][0] * 255).byte().cpu().numpy().transpose(1, 2, 0)[:h, :w], [cv2.IMWRITE_JPEG_QUALITY, 95])   

@@ -70,11 +70,11 @@ def train(model, local_rank, args):
             time_stamp = time.time()
             data_gpu, timestep = data
             data_gpu = data_gpu.to(device, non_blocking=True) / 255.
-            timestep = timestep.to(device, non_blocking=True)
+            timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)
             imgs = data_gpu[:, :6]
             gt = data_gpu[:, 6:9]
             learning_rate = get_learning_rate(step) * args.world_size / 4
-            pred, info = model.update(imgs, gt, learning_rate, training=True) # pass timestep if you are training RIFEm
+            pred, info = model.update(imgs, gt, timestep, learning_rate, training=True) # pass timestep if you are training RIFEm
             train_time_interval = time.time() - time_stamp
             time_stamp = time.time()
             if step % 200 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
@@ -82,6 +82,9 @@ def train(model, local_rank, args):
                 writer.add_scalar('loss/l1', info['loss_l1'], step)
                 writer.add_scalar('loss/tea', info['loss_tea'], step)
                 writer.add_scalar('loss/distill', info['loss_distill'], step)
+                writer.add_scalar('timestep/mean', timestep.mean().item(), step)
+                writer.add_scalar('timestep/std',  timestep.std().item(),  step)
+                writer.add_histogram('timestep/batch', timestep.detach(), step)
             if step % 1000 == 1 and (args.no_ddp or (not args.no_ddp and local_rank == 0)):
                 gt = (gt.permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
                 mask = (torch.cat((info['mask'], info['mask_tea']), 3).permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype('uint8')
@@ -114,11 +117,12 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
     time_stamp = time.time()
     for i, data in enumerate(val_data):
         data_gpu, timestep = data
-        data_gpu = data_gpu.to(device, non_blocking=True) / 255.        
+        data_gpu = data_gpu.to(device, non_blocking=True) / 255.
+        timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)        
         imgs = data_gpu[:, :6]
         gt = data_gpu[:, 6:9]
         with torch.no_grad():
-            pred, info = model.update(imgs, gt, training=False)
+            pred, info = model.update(imgs, gt, timestep, training=False)
             merged_img = info['merged_tea']
         loss_l1_list.append(info['loss_l1'].cpu().numpy())
         loss_tea_list.append(info['loss_tea'].cpu().numpy())
@@ -138,6 +142,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
                 imgs = np.concatenate((merged_img[j], pred[j], gt[j]), 1)[:, :, ::-1]
                 writer_val.add_image(str(j) + '/img', imgs.copy(), nr_eval, dataformats='HWC')
                 writer_val.add_image(str(j) + '/flow', flow2rgb(flow0[j][:, :, ::-1]), nr_eval, dataformats='HWC')
+                writer_val.add_histogram('timestep/batch', timestep.detach(), nr_eval)
     
     eval_time_interval = time.time() - time_stamp
 

@@ -124,18 +124,18 @@ class Model:
         torch.save(self.flownet.state_dict(), ckpt_path)
         print(f"[save_model] Saved checkpoint to {ckpt_path}")
 
-    def inference(self, img0, img1, scale=1, scale_list=[4, 2, 1], TTA=False, timestep=0.5):
+    def inference(self, img0, img1, timestep, scale=1, scale_list=[4, 2, 1], TTA=False):
         for i in range(3):
             scale_list[i] = scale_list[i] * 1.0 / scale
         imgs = torch.cat((img0, img1), 1)
-        flow, mask, merged, flow_teacher, merged_teacher, loss_distill = self.flownet(imgs, scale_list, timestep=timestep)
+        flow, mask, merged, flow_teacher, merged_teacher, loss_distill = self.flownet(imgs, timestep=timestep, scale=scale_list)
         if TTA == False:
             return merged[2]
         else:
-            flow2, mask2, merged2, flow_teacher2, merged_teacher2, loss_distill2 = self.flownet(imgs.flip(2).flip(3), scale_list, timestep=timestep)
+            flow2, mask2, merged2, flow_teacher2, merged_teacher2, loss_distill2 = self.flownet(imgs.flip(2).flip(3), timestep=timestep, scale=scale_list)
             return (merged[2] + merged2[2].flip(2).flip(3)) / 2
     
-    def update(self, imgs, gt, learning_rate=0, mul=1, training=True, flow_gt=None):
+    def update(self, imgs, gt, timestep, learning_rate=0, mul=1, training=True, flow_gt=None):
         for param_group in self.optimG.param_groups:
             param_group['lr'] = learning_rate
         img0 = imgs[:, :3]
@@ -144,12 +144,12 @@ class Model:
             self.train()
         else:
             self.eval()
-        flow, mask, merged, flow_teacher, merged_teacher, loss_distill = self.flownet(torch.cat((imgs, gt), 1), scale=[4, 2, 1])
+        flow, mask, merged, flow_teacher, merged_teacher, loss_distill = self.flownet(torch.cat((imgs, gt), 1), timestep, scale=[4, 2, 1])
         loss_l1 = (self.lap(merged[2], gt)).mean()
         loss_tea = (self.lap(merged_teacher, gt)).mean()
         if training:
             self.optimG.zero_grad()
-            loss_G = loss_l1 + loss_tea + loss_distill * 0.01 # when training RIFEm, the weight of loss_distill should be 0.005 or 0.002
+            loss_G = loss_l1 + loss_tea + loss_distill * 0.005 # when training RIFEm, the weight of loss_distill should be 0.005 or 0.002
             loss_G.backward()
             self.optimG.step()
         else:
@@ -163,4 +163,5 @@ class Model:
             'loss_l1': loss_l1,
             'loss_tea': loss_tea,
             'loss_distill': loss_distill,
+            'timestep': timestep
             }
