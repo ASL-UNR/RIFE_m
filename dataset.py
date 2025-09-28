@@ -182,11 +182,13 @@ class CustomDataset(Dataset):
                     img0 = img0[:, ::-1]
                     img1 = img1[:, ::-1]
                     gt = gt[:, ::-1]
+                '''
                 if random.uniform(0, 1) < 0.5:
                     tmp = img1
                     img1 = img0
                     img0 = tmp
                     timestep = 1 - timestep
+                '''
                 p = random.uniform(0, 1)
                 if p < 0.25:
                     img0 = cv2.rotate(img0, cv2.ROTATE_90_CLOCKWISE)

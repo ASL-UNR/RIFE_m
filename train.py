@@ -69,11 +69,12 @@ def train(model, local_rank, args):
             for num_sample in range(8):
                 print("on sample number " + str(num_sample))
                 data = dat[num_sample]
-                print(data)
+                print(f"data shape before: {data.shape}")
                 data_time_interval = time.time() - time_stamp
                 time_stamp = time.time()
                 data_gpu, timestep = data
-                print(timestep)
+                print(f"timestep shape:{timestep.shape}")
+                print(f"data shape:{data_gpu.shape}")
                 data_gpu = data_gpu.to(device, non_blocking=True).float() / 255.
                 timestep = timestep.to(device=device, dtype=torch.float32, non_blocking=True)
                 imgs = data_gpu[:, :6]
