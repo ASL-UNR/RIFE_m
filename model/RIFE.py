@@ -135,6 +135,38 @@ class Model:
             flow2, mask2, merged2, flow_teacher2, merged_teacher2, loss_distill2 = self.flownet(imgs.flip(2).flip(3), timestep=timestep, scale=scale_list)
             return (merged[2] + merged2[2].flip(2).flip(3)) / 2
     
+    def forward_and_loss(self, imgs, gt, timestep, training=True):
+        """
+        Forward pass that computes all losses but does NOT zero_grad or step.
+        Returns: (pred, info, loss_G)
+        """
+        if training:
+            self.train()
+        else:
+            self.eval()
+
+        # Forward
+        flow, mask, merged, flow_teacher, merged_teacher, loss_distill = self.flownet(torch.cat((imgs, gt), 1), timestep, scale=[4, 2, 1])
+
+        # Losses
+        loss_l1 = (self.lap(merged[2], gt)).mean()
+        loss_tea = (self.lap(merged_teacher, gt)).mean()
+        loss_G = loss_l1 + loss_tea + loss_distill * 0.005  # keep same weighting
+
+        # Pack info in same shape you already log
+        info = {
+            'merged_tea': merged_teacher,
+            'mask': mask,
+            'mask_tea': mask,
+            'flow': flow[2][:, :2],
+            'flow_tea': flow_teacher,
+            'loss_l1': loss_l1,
+            'loss_tea': loss_tea,
+            'loss_distill': loss_distill,
+            'timestep': timestep
+        }
+        return merged[2], info, loss_G
+
     def update(self, imgs, gt, timestep, learning_rate=0, mul=1, training=True, flow_gt=None):
         for param_group in self.optimG.param_groups:
             param_group['lr'] = learning_rate
