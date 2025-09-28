@@ -20,11 +20,11 @@ from torch.utils.data.distributed import DistributedSampler
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_learning_rate(step):
-    if step < 2000:
-        mul = step / 2000.
+    if step < 1400:
+        mul = step / 1400.
         return 3e-4 * mul
     else:
-        mul = np.cos((step - 2000) / (args.epoch * args.step_per_epoch - 2000.) * math.pi) * 0.5 + 0.5
+        mul = np.cos((step - 1400) / (args.epoch * args.step_per_epoch - 1400.) * math.pi) * 0.5 + 0.5
         return (3e-4 - 3e-6) * mul + 3e-6
 
 def flow2rgb(flow_map_np):
@@ -81,7 +81,7 @@ def train(model, local_rank, args):
             data_time_interval = time.time() - time_stamp
             time_stamp = time.time()
 
-            for num_sample in range(8):
+            for num_sample in range(4):
                 data = dat[num_sample]
                 time_stamp = time.time()
                 data_gpu, timestep = data
@@ -95,12 +95,12 @@ def train(model, local_rank, args):
                 #time_stamp = time.time()
 
                 pred, info, loss_G = model.forward_and_loss(imgs, gt, timestep, training=True)
-                loss_G = loss_G / 8.0
+                loss_G = loss_G / 4.0
                 loss_G.backward()
 
-                running_loss_l1 += (info['loss_l1'].item() / 8.0)
-                running_loss_tea += (info['loss_tea'].item() / 8.0)
-                running_loss_distill += (info['loss_distill'].item() / 8.0)
+                running_loss_l1 += (info['loss_l1'].item() / 4.0)
+                running_loss_tea += (info['loss_tea'].item() / 4.0)
+                running_loss_distill += (info['loss_distill'].item() / 4.0)
                 pred_to_log = pred
                 info_to_log = info
 
@@ -193,7 +193,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
 if __name__ == "__main__":    
     parser = argparse.ArgumentParser()
     parser.add_argument('--no_ddp', action='store_true', help='Disable DDP for single-GPU mode (e.g., Colab)')
-    parser.add_argument('--epoch', default=300, type=int)
+    parser.add_argument('--epoch', default=200, type=int)
     parser.add_argument('--batch_size', default=16, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
     parser.add_argument('--world_size', default=4, type=int, help='world size')

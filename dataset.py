@@ -165,8 +165,8 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, index):
         list_samples = []
-        list_indices = [[1,2,4], [1,3,4], [2,3,5], [2,4,5], [3,4,6], [3,5,6], [4,5,7], [4,6,7]]
-        for i in range(8):
+        list_indices = [[1,2,4], [2,4,5], [3,4,6], [4,6,7]]
+        for i in range(4):
             img0, gt, img1, timestep = self.getimg(index, list_indices[i][0], list_indices[i][1], list_indices[i][2])
             if self.dataset_name == 'train':
                 img0, gt, img1 = self.crop(img0, gt, img1, 224, 224)
