@@ -152,7 +152,7 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val, args):
     psnr_list_teacher = []
     time_stamp = time.time()
     for i, dat in enumerate(val_data):
-        num_sample = random.randint(0, 7)
+        num_sample = random.randint(0, 3)
         data = dat[num_sample]
         data_gpu, timestep = data
         data_gpu = data_gpu.to(device, non_blocking=True) / 255.
