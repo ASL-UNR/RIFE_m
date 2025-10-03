@@ -60,7 +60,7 @@ def train(model, local_rank, args):
                 "timestep": ["Multiline", ["timestep/mean", "timestep/std"]]
             },
             "Validation/PSNR": {
-                "psnr": ["Margin", ["psnr", "psnr_teacher"]]
+                "psnr_lines": ["Multiline", ["psnr", "psnr_teacher"]]
             },
         }
         writer.add_custom_scalars(layout)
