@@ -40,12 +40,31 @@ def flow2rgb(flow_map_np):
 def train(model, local_rank, args):
     log_path = args.logpath
     print(log_path)
+    run_name = time.strftime("rife_%Y%m%d-%H%M%S")
+    tb_root = os.path.join(log_path, "tb", run_name)
+    os.makedirs(tb_root, exist_ok=True)
+
     if args.no_ddp or (not args.no_ddp and local_rank == 0):
-        writer = SummaryWriter('train')
-        writer_val = SummaryWriter('validate')
+        writer = SummaryWriter(log_dir=os.path.join(tb_root, "train"))
+        writer_val = SummaryWriter(log_dir=os.path.join(tb_root, "validate"))
     else:
         writer = None
         writer_val = None
+
+    if writer is not None:
+        layout = {
+            "Training/Losses": {
+                "losses": ["Multiline", ["loss/l1", "loss/tea", "loss/distill"]]
+            },
+            "Training/Timestep": {
+                "timestep": ["Multiline", ["timestep/mean", "timestep/std"]]
+            },
+            "Validation/PSNR": {
+                "psnr": ["Margin", ["psnr", "psnr_teacher"]]
+            },
+        }
+        writer.add_custom_scalars(layout)
+
     step = 0
     nr_eval = 0
     #dataset = VimeoDataset('train')
