@@ -3,7 +3,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Renaming image frames')
 parser.add_argument('--directory', dest='directory', required=True)
-parser.add_argument('--numOGFrames', dest='numOGFrames', required=True)
+parser.add_argument('--numOGFrames', dest='numOGFrames', type=int, required=True)
 args = parser.parse_args()
 
 def rename_images(directory, numframes):
