@@ -3,11 +3,13 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Renaming image frames')
 parser.add_argument('--directory', dest='directory', required=True)
+parser.add_argument('--numOGFrames', dest='numOGFrames', required=True)
 args = parser.parse_args()
 
-def rename_images(directory):
+def rename_images(directory, numframes):
     marker = 0
-    for i in range (0, 99):
+    a = numframes - 1
+    for i in range (0, a):
         name0 = f"frame{i}_0.333_{i+1}.jpg"
         name1 = f"frame{i}_0.666_{i+1}.jpg"
         name2 = f"frame{i+1}.jpg"
@@ -28,7 +30,8 @@ def rename_images(directory):
             print(f"Renaming {filename} -> {new_name}")
             os.rename(src, dst)
 
-    for i in range (1, 298):
+    b = numframes * 3 - 2
+    for i in range (1, b):
         filename = f"frame{i}new.jpg"
         new_name = f"frame{i}.jpg"
         src = os.path.join(directory, filename)
@@ -36,4 +39,4 @@ def rename_images(directory):
         print(f"Renaming {filename} -> {new_name}")
         os.rename(src, dst)
 
-rename_images(args.directory)
+rename_images(args.directory, args.numOGFrames)
