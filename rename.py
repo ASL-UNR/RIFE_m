@@ -7,7 +7,7 @@ args = parser.parse_args()
 
 def rename_images(directory):
     marker = 0
-    for i in range (0, 304):
+    for i in range (0, 99):
         name0 = f"frame{i}_0.333_{i+1}.jpg"
         name1 = f"frame{i}_0.666_{i+1}.jpg"
         name2 = f"frame{i+1}.jpg"
@@ -28,7 +28,7 @@ def rename_images(directory):
             print(f"Renaming {filename} -> {new_name}")
             os.rename(src, dst)
 
-    for i in range (1, 913):
+    for i in range (1, 298):
         filename = f"frame{i}new.jpg"
         new_name = f"frame{i}.jpg"
         src = os.path.join(directory, filename)
