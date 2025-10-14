@@ -42,7 +42,6 @@ class Model:
         self.flownet.to(device)
 
     def load_model(self, path, rank=0, strict=True):
-        '''
         def convert(param):
             return {
             k.replace("module.", ""): v
@@ -90,6 +89,7 @@ class Model:
         step = ckpt.get("step")
         print(f"[load_model] Loaded checkpoint from {ckpt_path} (epoch={epoch}, step={step})")
         return epoch, step
+        '''
 
     def save_model(self, path, rank=0, epoch=None, step=None):
         #if rank == 0:
