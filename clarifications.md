@@ -4,14 +4,17 @@
 
 ## Project Philosophy & Goals
 What is goal of the project? 
-[Systems] To create an FPV frame interpolation system? --> Why not choose something more SOTA from 2024/25
-[AIGC/ML] To create a new real-time frame interpolation algorithm? 
-Although both are great avenues, it is important to define the type of innovation we are aiming for, since that will allow us to use the relevant tools.
+- [Systems] To create an FPV frame interpolation system? --> Why not choose something more SOTA from 2024/25
+- [AIGC/ML] To create a new real-time frame interpolation algorithm? 
 
-## Slide 30 
-`One sample --> 4, but overall batch size remains the same?` Didn't understand..
+Although both are great avenues, it is important to define the type of innovation we are aiming for, since that will allow us to use the relevant tools (Robotics vs AIGC vs Both).
 
-## Did the HDv3 weights work with IFNet_m?
+## What is the typical workflow: 
+- frame extraction --> batch_interpolate.py --> rename.py --> video encoding
+- Please document this well for general reference (will be needed when we publish the paper)
+
+## The goal is video_in --> interpolated_video_out. Correct?
+- How to achieve that in this repo?
 
 ## Please explain the septuplet logic
 - Any way to quantify the movement (of camera/objects) in input frames (training vs inference)?
@@ -30,11 +33,11 @@ Although both are great avenues, it is important to define the type of innovatio
 ## What are "cycles" and "error" in this context (iterative refinement loops)?
 - Commit 786e220 ["increased max inference_img.py cycles to 12, error to 0.0001"]
 
-## What is the typical workflow: 
-- frame extraction --> batch_interpolate.py --> rename.py --> video encoding
-- Please document this well for general reference (will be needed when we publish the paper)
+## Slide 30 in your presentation
+`One sample --> 4, but overall batch size remains the same?` Didn't understand..
 
-## The final goal will be video in --> interpolated video out. Correct?
+## Did the HDv3 weights work with IFNet_m?
+- What other weights are available and differences? size/parameters?
 
 # Suggestions and random thoughts
 ### Overfit Test
@@ -48,7 +51,8 @@ Although both are great avenues, it is important to define the type of innovatio
 - Typical optical flow magnitude (in pixels) and Viewpoint shift (rotation angle, parallax) are exploratory metrics. 
 - Effect of Lens distortion (FPV cameras could have wide-angle compared to the dataset)
 - Illumination changes (Indoors vs Outdoors) - distribution of Frame-to-frame change
-- Standard RIFE skips nearly-identical frames (SSIM > 0.996) - appropriate for 10 FPS FPV
+- Standard RIFE skips nearly-identical frames (SSIM > 0.996) - similar for 10 FPS FPV?
+
 If the two distributions are misaligned beyond a certain margin, RIFE architecture might be the limiting factor.
 
 
