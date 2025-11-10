@@ -5,16 +5,21 @@
 ## Project Philosophy & Goals
 What is goal of the project? 
 - [Systems] To create an FPV frame interpolation system? --> Why not choose something more SOTA from 2024/25
-- [AIGC/ML] To create a new real-time frame interpolation algorithm? 
+- [AIGC/ML] To create a new real-time frame interpolation algorithm?
+- Answer: The goal was to build on the existing framework of RIFE, which is a widely known framework that works well and is suited to our use case. It was Sanket's decision to use RIFE, so I trust that he picked the best option; in addition, there have been many more recent updates to RIFE (such as practical RIFE, RIFE HDv3, etc.) that may be more SOTA, so it would be good to test that. I don't think the goal is to create an entirely new algorithm, but expand on RIFE for our use case to get rid of distortions and other issues.
 
 Although both are great avenues, it is important to define the type of innovation we are aiming for, since that will allow us to use the relevant tools (Robotics vs AIGC vs Both).
+Answer: Of the above, I think our goal matches the creation of an FPV frame interpolation system more.
 
 ## What is the typical workflow: 
 - frame extraction --> batch_interpolate.py --> rename.py --> video encoding
 - Please document this well for general reference (will be needed when we publish the paper)
+- Answer: I agree; the current typical workflow is:
+  Original 30 FPS frames (original_frames) --> downsample to 10 FPS frames (10FPS_frames) --> batch_interpolate.py with 10FPS_frames to get interpolated 30 FPS frames (interpolated_frames) --> rename.py with interpolated_frames --> video encoding with interpolated_frames, and/or comparison of original_frames with interpolated_frames
 
 ## The goal is video_in --> interpolated_video_out. Correct?
 - How to achieve that in this repo?
+- Answer: Yes, I understand that to be the goal. I think 
 
 ## Please explain the septuplet logic
 - Any way to quantify the movement (of camera/objects) in input frames (training vs inference)?
