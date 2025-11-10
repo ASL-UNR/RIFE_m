@@ -19,14 +19,16 @@ Answer: Of the above, I think our goal matches the creation of an FPV frame inte
 
 ## The goal is video_in --> interpolated_video_out. Correct?
 - How to achieve that in this repo?
-- Answer: Yes, I understand that to be the goal. I think 
+- Answer: Yes, I understand that to be the goal. I'll work on combining the current workflow into one script.
 
 ## Please explain the septuplet logic
 - Any way to quantify the movement (of camera/objects) in input frames (training vs inference)?
+- Answer: There are 7 frames in each septuplet (30 FPS): F1, F2, F3, F4, F5, F6, F7. For our use case, interpolating from 10 to 30 FPS, we want to interpolate 2 additional frames between every frame pair in the 10 FPS frames (one at t=1/3, another at t=2/3). So from each septuplet, we can choose a triplet where the 1st and 3rd frames are separated by 2 frames, and the 2nd frame is one of those 2 intermediate frames (either t=1/3 or t=2/3). For example, F1 F2 F4 (t=1/3), or F4 F6 F7 (t=2/3). This allows us to get many more training samples from each septuplet.
 
 ## Please help document the gradiant accumulation?
 - Commit 3575169 ["adding gradient accumulation for the 8 triplets per septuplet"]
 - Why was this done? Is it a established practice?
+- Answer: I wanted to maintain the batch size 
 
 ## Record of Hyperparameters & their effects, trained/fine-tuned model checkpoints & metrics?
 - List of Hyperparameters and one-line/10 word explanations
@@ -37,12 +39,15 @@ Answer: Of the above, I think our goal matches the creation of an FPV frame inte
 
 ## What are "cycles" and "error" in this context (iterative refinement loops)?
 - Commit 786e220 ["increased max inference_img.py cycles to 12, error to 0.0001"]
+- Answer: This is outdated now, since we've transitioned from interpolating using a binary recursive method (IFNet) to directly interpolating at t=1/3 or t=2/3. Originally, we had to interpolate at t=0.5 again and again for multiple cycles to approximate t=1/3 or t=2/3 within a certain error.
 
 ## Slide 30 in your presentation
 `One sample --> 4, but overall batch size remains the same?` Didn't understand..
+Answer: From one septuplet, which is called a "sample" here, there are 4 different triplets that are obtained (as explained in a previous answer). However, these 4 triplets are all processed   making the ending batch size the same.
 
 ## Did the HDv3 weights work with IFNet_m?
 - What other weights are available and differences? size/parameters?
+- Answer: 
 
 # Suggestions and random thoughts
 ### Overfit Test
