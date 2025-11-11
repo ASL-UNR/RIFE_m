@@ -28,7 +28,7 @@ Answer: Of the above, I think our goal matches the creation of an FPV frame inte
 ## Please help document the gradiant accumulation?
 - Commit 3575169 ["adding gradient accumulation for the 8 triplets per septuplet"]
 - Why was this done? Is it a established practice?
-- Answer: I wanted to maintain the batch size 
+- Answer: I wanted to maintain the batch size to keep the learning rate the same; since the model is only stepped once every 4 triplets, the batch size should still be treated as the same. I average the 4 losses before the optimization step. I think it is an established practice, it seems to be used in DAIN (CVPR 2019), and from some reading online, it seems accumulating the gradient across multiple micro-batches and stepping once per large batch has been done. Since I'm not as knowledgeable in the subject, though, it would be very helpful to hear your thoughts on this.
 
 ## Record of Hyperparameters & their effects, trained/fine-tuned model checkpoints & metrics?
 - List of Hyperparameters and one-line/10 word explanations
@@ -36,6 +36,16 @@ Answer: Of the above, I think our goal matches the creation of an FPV frame inte
   - costly experiments, not a good idea to let them get lost
   - Have some way to analyze over/under fitting, training smoothness
 - Ability to resume training if required (power/network outage or curriculum training)
+- Answer:
+- no_DDP: true; only using 1 GPU
+- epoch: 200 (was 300, may be limiting model)
+- batch size: 16 (see above explanation about batch size)
+- learning rate: initial is 3e-4, minimum is 3e-6, 1400 steps before cosine scheduling begins
+- number of gradient accumulation steps: 4
+- number of workers: 2 for training, 8 for validation
+- validation frequency: every 5 epochs
+- I will look into allowing the model to resume training.
+- Since I've only trained the model once so far, I'm not sure of each's effect on performance metrics yet; it would be helpful to hear some advice on how to do this.
 
 ## What are "cycles" and "error" in this context (iterative refinement loops)?
 - Commit 786e220 ["increased max inference_img.py cycles to 12, error to 0.0001"]
@@ -43,17 +53,17 @@ Answer: Of the above, I think our goal matches the creation of an FPV frame inte
 
 ## Slide 30 in your presentation
 `One sample --> 4, but overall batch size remains the same?` Didn't understand..
-Answer: From one septuplet, which is called a "sample" here, there are 4 different triplets that are obtained (as explained in a previous answer). However, these 4 triplets are all processed   making the ending batch size the same.
+Answer: From one septuplet, which is called a "sample" here, there are 4 different triplets that are obtained (as explained in a previous answer). However, the losses from these 4 triplets are all averaged and the optimizer only steps every 4 triplets, making the ending batch size the same. I'm not sure if there could be side effects from doing this.
 
 ## Did the HDv3 weights work with IFNet_m?
 - What other weights are available and differences? size/parameters?
-- Answer: 
+- Answer: I tried a variety of other weights with IFNet_m a while ago, including HDv3, so far only the original model's works. I think the authors only used IFNet to generate the weights available online. To my knowledge, the format of the weights are the same.
 
 # Suggestions and random thoughts
 ### Overfit Test
 - To test the correctness of their code and your code 
 - Training and testing on an extremely small dataset, check if very high training and testing accuracies are being achieved. 
-- This is a simple to test and obvious indication of something being wrong. 
+- This is a simple to test and obvious indication of something being wrong.
 
 ### Motion Primitives
 - What is the distribution of frame-to-frame motion in the training data (speed, rotation rates, etc.)?
